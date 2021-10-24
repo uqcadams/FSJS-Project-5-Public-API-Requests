@@ -1,35 +1,37 @@
+// Empty array to store the fetched data;
+let employeeData = [];
+// Empty HTMLCollection with global scope for cross-functional handling
+let employeeHTMLCollection;
+
 // FETCH API CALL
-// Fetch parametres
-// I've positioned these outside the fetch request to make the call more easily reusable with custom calls
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Query parametres
 const baseURL = "https://randomuser.me/api/";
 const results = 12;
 const query = `?results=${results}&inc=picture,name,email,location,cell,dob&nat=US`;
 
-// Asynchronous function to fetch data
+/**
+ * Basic asynchronous fetch request, taking a custom URL and query parametre to customise the returned information. Can be re-used with different data sources for similar results.
+ * @param {takes a URL for fetching data from} baseURL
+ * @param {takes the parametres of the fetch query} query
+ * @returns the dataset requested by the call
+ */
 const getEmployeeData = async (baseURL, query) => {
   const response = await fetch(baseURL + query);
   const data = await response.json();
   return data;
 };
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// Empty array to store the fetched data;
-let employeeData = [];
-
-// Fetch function call
-getEmployeeData(baseURL, query)
-  .then((data) => {
-    // stores employee data in the empty array
-    employeeData = data.results;
-  })
-  // throws an error with details if an issue arises
-  .catch((error) => console.log(`An error occured: ${error}`));
-
+// POPULATING THE DOM WITH THE EMPLOYEE DATA
+/**
+ * Populates the DOM with cards representing each employee fetched from the random user API.
+ */
 const populateDirectory = () => {
   const gallery = document.querySelector("#gallery");
-  let directoryHTML = "";
+  // Establishes an index counter for cross referencing HTML profile and position in employee data array;
   let employeeIndex = 0;
   for (let employee of employeeData) {
-    console.log(employee.email);
     let employeeName = `${employee.name.title} ${employee.name.first} ${employee.name.last}`;
     let employeeProfile = `
       <div class="card" data-index="${employeeIndex}">
@@ -43,55 +45,34 @@ const populateDirectory = () => {
           </div>
       </div>
     `;
-    directoryHTML += employeeProfile;
+    // Inserts the employee profile into the DOM
+    gallery.insertAdjacentHTML("beforeend", employeeProfile);
+    // Increases the index counter for each employee.
     employeeIndex++;
   }
-  gallery.innerHTML = directoryHTML;
+  // Creates an HTML collection of employee cards for manipulation via the search function.
+  employeeHTMLCollection = document.getElementsByClassName("card");
+  galleryEventListeners();
+  appendSearch();
 };
 
-const closeModal = () => {
-  const closeBtn = document.querySelector(".modal-close-btn");
-  closeBtn.addEventListener("click", () => {
-    document.querySelector(".modal-container").remove();
-  });
-  testEvent();
+const galleryEventListeners = () => {
+  for (let employee of employeeHTMLCollection) {
+    employee.addEventListener("click", () => {
+      let employeeIndex = employee.dataset.index;
+      employeeModal(employeeIndex);
+    });
+  }
 };
 
-const modalNavListeners = (index) => {
-  let currentIndex = index;
-  const previousModal = document.querySelector(".modal-prev");
-  const nextModal = document.querySelector(".modal-next");
-
-  nextModal.addEventListener("click", () => {
-    if (currentIndex < employeeData.length) {
-      currentIndex += 1;
-    } else if (currentIndex === employeeData.length) {
-      currentIndex = 0;
-    }
-    employeeModal(currentIndex);
-    console.log(currentIndex);
-  });
-
-  previousModal.addEventListener("click", () => {
-    if (currentModalIndex === 0) {
-      currentModalIndex = 11;
-    } else if (currentModalIndex <= 11) {
-      currentModalIndex -= 1;
-    }
-    employeeModal(currentModalIndex);
-    console.log(currentModalIndex);
-  });
-};
-
+/**
+ * Injects the HTML and data for a custom user profile popup.
+ * @param {an integer representing the current index of the user selected} index
+ */
 const employeeModal = (index) => {
-  const currentIndex = index;
-  const body = document.querySelector("body");
-  const employee = employeeData[currentIndex];
+  const employee = employeeData[index];
   const employeeName = `${employee.name.title} ${employee.name.first} ${employee.name.last}`;
-
   const employeeBirthdate = new Date(employee.dob.date);
-
-  console.log(employee);
 
   const modal = `
     <div class="modal-container">
@@ -115,18 +96,103 @@ const employeeModal = (index) => {
       </div>
   </div>
   `;
-  body.innerHTML += modal;
-  modalNavListeners(currentIndex);
+  document.querySelector("body").insertAdjacentHTML("beforeend", modal);
+  modalNavListeners(index);
   closeModal();
 };
 
-const testEvent = () => {
-  const employeeThumbs = document.querySelectorAll(".card");
-  for (let thumb of employeeThumbs) {
-    thumb.addEventListener("click", () => {
-      console.log("fired");
-      let employeeIndex = thumb.dataset.index;
-      employeeModal(employeeIndex);
-    });
+/**
+ * Adds functionality to close the modal pop
+ */
+const closeModal = () => {
+  const closeBtn = document.querySelector(".modal-close-btn");
+  closeBtn.addEventListener("click", () => {
+    document.querySelector(".modal-container").remove();
+  });
+};
+
+/**
+ * Adds event listeners to the navigation buttons on the modal popup. This allows the user to navigate between user profiles.
+ * @param {an integer representing the current index of the user selected} index
+ */
+const modalNavListeners = (index) => {
+  let currentIndex = parseInt(index);
+  const previousModal = document.querySelector(".modal-prev");
+  const nextModal = document.querySelector(".modal-next");
+
+  nextModal.addEventListener("click", () => {
+    if (currentIndex < employeeData.length - 1) {
+      currentIndex += 1;
+    } else {
+      currentIndex = 0;
+    }
+    document.querySelector(".modal-container").remove();
+    employeeModal(currentIndex);
+  });
+
+  previousModal.addEventListener("click", () => {
+    if (currentIndex === 0) {
+      currentIndex = employeeData.length - 1;
+    } else {
+      currentIndex -= 1;
+    }
+    document.querySelector(".modal-container").remove();
+    employeeModal(currentIndex);
+  });
+};
+
+// EXCEEDS EXPECTATIONS - SEARCH FUNCTIONALITY
+
+// Dynamically inserts searchbar HTML into DOM and applies basic functionality
+const appendSearch = () => {
+  // Searchbar HTML. Removed the submission button, as the search should provide live results as the user types. The submission button was redundant.
+  const searchHTML = `
+    <form action="#" method="get">
+        <input type="search" id="search-input" class="search-input" placeholder="Search...">
+    </form>
+  `;
+
+  // Inserts the HTML into the header section
+  document.querySelector(".search-container").insertAdjacentHTML("beforeend", searchHTML);
+
+  // Adds a keyup event listener to the search input
+  document.getElementById("search-input").addEventListener("keyup", (e) => {
+    searchDirectory();
+  });
+};
+
+/**
+ * Search functionality the runs on keypress input in the search bar.
+ * Takes user input, and iterates over the HTMLCollection of employee names.
+ * If the user input is included in the employee name, the parent card is displayed.
+ * If the user input is not included in the employee name, the parent card is hidden.
+ */
+const searchDirectory = () => {
+  let input = document.getElementById("search-input").value;
+  input = input.toLowerCase();
+
+  //ITERATE THROUGH THE LIST OF NAMES TO FIND MATCHES
+  for (let employee of employeeHTMLCollection) {
+    // limits search params to name only
+    let employeeName = employee.querySelector(".card-name");
+    if (employeeName.textContent.toLowerCase().includes(input)) {
+      employee.style.display = "";
+    } else {
+      employee.style.display = "none";
+    }
   }
 };
+
+// Fetch function call
+getEmployeeData(baseURL, query)
+  .then((data) => {
+    // stores employee data in the empty array
+    employeeData = data.results;
+    return employeeData;
+  })
+  .then(() => {
+    // uses the stored data to populate the DOM
+    populateDirectory();
+  })
+  // throws an error with details if an issue arises
+  .catch((error) => console.log(`An error occured: ${error}`));
